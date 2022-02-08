@@ -1,7 +1,7 @@
-# diun.platform=linux/amd64
+# diun.watch_repo=true
 FROM nextcloud:latest
 
-# diun.watch_repo=true
+
 RUN set -ex; \
     \
     apt-get update; \
