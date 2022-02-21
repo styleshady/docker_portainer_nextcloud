@@ -14,8 +14,7 @@ services:
       replicas: 1
 
   nextcloud:
-    build: ./
-    #image: my_nextcloud:latest
+    image: mynextcloudbuild:latest
     depends_on:
       - redis
     volumes:
