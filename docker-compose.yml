@@ -3,7 +3,7 @@ version: '3.7'
 services:
   redis:
     image: redis:latest
-    restart: always
+    #restart: always
     command: redis-server /usr/local/etc/redis/redis.conf
     volumes:
       - nextcloud-redis:/usr/local/etc/redis/redis.conf
