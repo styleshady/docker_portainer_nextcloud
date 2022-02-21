@@ -1,0 +1,92 @@
+version: '3.7'
+
+services:
+  redis:
+    image: redis:latest
+    restart: always
+    command: redis-server /usr/local/etc/redis/redis.conf
+    volumes:
+      - nextcloud-redis:/usr/local/etc/redis/redis.conf
+    networks:
+      - proxy_lan
+    deploy:
+      mode: replicated
+      replicas: 1
+
+  nextcloud:
+    build:
+    #image: my_nextcloud:latest
+    depends_on:
+      - redis
+    volumes:
+      - nextcloud-data:/var/www/html/
+    secrets:
+      - mysql_user_password
+      - mysql_user
+      - mysql_database
+      - nextcloud_admin_user
+      - nextcloud_admin_password
+    environment:
+      - MYSQL_HOST=mariadb
+      - MYSQL_USER_FILE=/run/secrets/mysql_user
+      - MYSQL_DATABASE_FILE=/run/secrets/mysql_database
+      - MYSQL_PASSWORD_FILE=/run/secrets/mysql_user_password
+      - NEXTCLOUD_ADMIN_USER_FILE=/run/secrets/nextcloud_admin_user
+      - NEXTCLOUD_ADMIN_PASSWORD_FILE=/run/secrets/nextcloud_admin_password   
+      - NEXTCLOUD_TRUSTED_DOMAINS=cloudtest.krappel.eu
+      - REDIS_HOST=redis
+      - TRUSTED_PROXIES=10.0.1.72/24
+      - OVERWRITEHOST=cloudtest.krappel.eu  
+      - OVERWRITEPROTOCOL=https 
+    networks:
+      - traefik-public
+      - proxy_lan
+    deploy:
+      labels:
+        - traefik.enable=true
+        - traefik.docker.network=traefik-public
+        - traefik.http.routers.nextcloud.rule=Host(`cloudtest.krappel.eu`)
+        - traefik.http.routers.nextcloud.entrypoints=websecure
+        - traefik.http.routers.nextcloud.tls=true
+        - traefik.http.routers.nextcloud.tls.certresolver=le
+        - traefik.http.services.nextcloud.loadbalancer.server.port=80
+        - traefik.http.routers.nextcloud.middlewares=nextcloud,nextcloud-dav
+        - traefik.http.middlewares.nextcloud-dav.redirectregex.regex=https://(.*)/.well-known/(card|cal)dav
+        - traefik.http.middlewares.nextcloud-dav.redirectregex.replacement=https://$$1/remote.php/dav/
+        - traefik.http.middlewares.nextcloud-dav.redirectregex.permanent=true
+        - traefik.http.middlewares.nextcloud.headers.frameDeny=true
+        - traefik.http.middlewares.nextcloud.headers.sslRedirect=true
+        - traefik.http.middlewares.nextcloud.headers.contentTypeNosniff=true
+        - traefik.http.middlewares.nextcloud.headers.stsIncludeSubdomains=true
+        - traefik.http.middlewares.nextcloud.headers.stsPreload=true
+        - traefik.http.middlewares.nextcloud.headers.stsSeconds=31536000
+        - traefik.http.middlewares.nextcloud.headers.forceSTSHeader=true
+        - traefik.http.middlewares.nextcloud.headers.referrerPolicy=no-referrer
+        - traefik.http.middlewares.nextcloud.headers.browserXssFilter=true
+        - traefik.http.middlewares.nextcloud.headers.customFrameOptionsValue=SAMEORIGIN
+        
+      mode: replicated
+      replicas: 1
+
+secrets:
+  mysql_user_password:
+    external: true
+  nextcloud_admin_password:
+    external: true
+  nextcloud_admin_user:
+    external: true
+  mysql_user:
+    external: true
+  mysql_database:
+    external: true
+
+networks:
+  traefik-public:
+    external: true
+  proxy_lan:
+    external: true
+
+volumes:
+
+  nextcloud-data:
+  nextcloud-redis:
